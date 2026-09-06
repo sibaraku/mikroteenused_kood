@@ -1,0 +1,31 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:80"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./src:/var/www/html/src
+      - ./views:/var/www/html/views
+      - ./public:/var/www/html/public
+
+  db:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-laenutus}
+      MYSQL_USER: ${MYSQL_USER:-laenutus}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-laenutus123}
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./sql:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
