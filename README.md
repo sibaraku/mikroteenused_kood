@@ -18,6 +18,18 @@ Ava brauseris: http://localhost:8080
 | student@kool.ee | student123 | user |
 | admin@kool.ee | admin123 | admin |
 
+## Rollipõhine vaade
+
+Sama rakendus, erinev UI vastavalt rollile:
+
+| Vaade | Õpilane | Admin |
+|---|---|---|
+| Vahendid | laenutuse vorm + nimekiri | vahendite haldus (staatuse muutmine) |
+| Laenutused | ainult enda laenutused | kõigi kasutajate laenutused |
+| Detail | tühistamine | laenutuse staatuse muutmine |
+
+Päises on adminil lilla **Admin** märk.
+
 ## API demo (curl)
 
 ```bash

@@ -13,10 +13,10 @@
     </form>
 
     <div class="hint">
-        <p><strong>Testkontod:</strong></p>
+        <p><strong>Testkontod (erinev vaade):</strong></p>
         <ul>
-            <li>student@kool.ee / student123</li>
-            <li>admin@kool.ee / admin123</li>
+            <li><strong>Õpilane:</strong> student@kool.ee / student123 — laenutab vahendeid</li>
+            <li><strong>Admin:</strong> admin@kool.ee / admin123 — haldab vahendeid ja laenutusi</li>
         </ul>
     </div>
 </section>

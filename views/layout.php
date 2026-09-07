@@ -12,7 +12,9 @@
             <a href="/" class="logo">Laenutus</a>
             <nav id="main-nav" class="main-nav hidden">
                 <a href="/items-page">Vahendid</a>
-                <a href="/loans-page">Minu laenutused</a>
+                <a href="/loans-page" id="nav-loans-link">Minu laenutused</a>
+                <span id="user-label" class="user-label"></span>
+                <span id="admin-badge" class="badge badge-admin hidden">Admin</span>
                 <button type="button" id="logout-btn" class="btn btn-ghost">Logi välja</button>
             </nav>
         </div>

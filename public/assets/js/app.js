@@ -11,6 +11,10 @@ const LaenutusApp = {
         return raw ? JSON.parse(raw) : null;
     },
 
+    isAdmin() {
+        return this.getUser()?.role === 'admin';
+    },
+
     setSession(token, user) {
         localStorage.setItem(this.TOKEN_KEY, token);
         localStorage.setItem(this.USER_KEY, JSON.stringify(user));
@@ -26,10 +30,28 @@ const LaenutusApp = {
     updateNav() {
         const nav = document.getElementById('main-nav');
         if (!nav) return;
-        if (this.getToken()) {
-            nav.classList.remove('hidden');
-        } else {
+
+        const user = this.getUser();
+        if (!this.getToken() || !user) {
             nav.classList.add('hidden');
+            return;
+        }
+
+        nav.classList.remove('hidden');
+
+        const loansLink = document.getElementById('nav-loans-link');
+        if (loansLink) {
+            loansLink.textContent = this.isAdmin() ? 'Kõik laenutused' : 'Minu laenutused';
+        }
+
+        const adminBadge = document.getElementById('admin-badge');
+        if (adminBadge) {
+            adminBadge.classList.toggle('hidden', !this.isAdmin());
+        }
+
+        const userLabel = document.getElementById('user-label');
+        if (userLabel) {
+            userLabel.textContent = user.name;
         }
     },
 
