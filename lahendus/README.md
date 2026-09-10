@@ -1,6 +1,6 @@
-# Laenutus — mikroteenuste valmislahendus (õpetajale)
+# Laenutus — mikroteenuste valmislahendus
 
-See kaust sisaldab **valmis lahendust**, kus juurkausta monoliit on jagatud **kolmeks mikroteenuseks**. Õpilased alustavad [monoliidist](../README.md) ja lõhkuvad selle ise; see kaust on võrdluseks ja kontrollnimekirjaks.
+See kaust sisaldab **valmis lahendust**, kus juurkausta monoliit on jagatud **kolmeks mikroteenuseks**. Võiks alustada [monoliidist](../README.md) ja lõhkuda see ise; see kaust on võrdluseks ja kontrollnimekirjaks.
 
 ## Käivitamine
 
@@ -112,7 +112,7 @@ curl http://localhost:8081/health    # items eraldi
 curl http://localhost:8082/health    # notifications eraldi
 ```
 
-Portid 8081 ja 8082 on debugimiseks — tavaline kasutaja kasutab ainult 8080.
+Pordid 8081 ja 8082 on debugimiseks — tavaline kasutaja kasutab ainult 8080.
 
 **Notifications (8082)** nõuab sisemist API võtit (`X-Internal-Api-Key` päis). Sama võti on `INTERNAL_API_KEY` muutujas nii `loans-service`-is kui `notifications-service`-is. Ilma võtmeta on `/notifications` otspunktid blokeeritud.
 
