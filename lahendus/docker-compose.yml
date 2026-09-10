@@ -1,0 +1,103 @@
+services:
+  loans-service:
+    build:
+      context: .
+      dockerfile: loans-service/Dockerfile
+    ports:
+      - "8080:80"
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-dev-internal-key-change-me}
+      DB_HOST: loans-db
+      DB_PORT: 3306
+      DB_NAME: loans_db
+      DB_USER: loans
+      DB_PASSWORD: loans123
+      ITEMS_SERVICE_URL: http://items-service
+      NOTIFICATIONS_SERVICE_URL: http://notifications-service
+    depends_on:
+      loans-db:
+        condition: service_healthy
+      items-service:
+        condition: service_started
+      notifications-service:
+        condition: service_started
+
+  items-service:
+    build:
+      context: .
+      dockerfile: items-service/Dockerfile
+    ports:
+      - "8081:80"
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      DB_HOST: items-db
+      DB_PORT: 3306
+      DB_NAME: items_db
+      DB_USER: items
+      DB_PASSWORD: items123
+    depends_on:
+      items-db:
+        condition: service_healthy
+
+  notifications-service:
+    build:
+      context: .
+      dockerfile: notifications-service/Dockerfile
+    ports:
+      - "8082:80"
+    environment:
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-dev-internal-key-change-me}
+      DB_HOST: notifications-db
+      DB_PORT: 3306
+      DB_NAME: notifications_db
+      DB_USER: notifications
+      DB_PASSWORD: notifications123
+    depends_on:
+      notifications-db:
+        condition: service_healthy
+
+  loans-db:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: loans_db
+      MYSQL_USER: loans
+      MYSQL_PASSWORD: loans123
+    volumes:
+      - ./loans-service/sql:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  items-db:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: items_db
+      MYSQL_USER: items
+      MYSQL_PASSWORD: items123
+    volumes:
+      - ./items-service/sql:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  notifications-db:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: notifications_db
+      MYSQL_USER: notifications
+      MYSQL_PASSWORD: notifications123
+    volumes:
+      - ./notifications-service/sql:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10

@@ -125,3 +125,7 @@ cp .env.example .env
 # Muuda .env: DB_HOST=localhost
 php -S localhost:8080 -t public
 ```
+
+## Õpetaja valmislahendus
+
+Mikroteenuste variant (3 teenust, 6 Docker konteinerit): vaata [`lahendus/README.md`](lahendus/README.md).

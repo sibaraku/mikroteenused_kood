@@ -1,0 +1,20 @@
+{
+    "name": "kool/laenutus-notifications",
+    "description": "Laenutus notifications mikroteenus",
+    "type": "project",
+    "require": {
+        "php": ">=8.2",
+        "ext-curl": "*",
+        "ext-pdo": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Laenutus\\": ["src/", "../shared/"]
+        }
+    },
+    "config": {
+        "audit": {
+            "block-insecure": false
+        }
+    }
+}

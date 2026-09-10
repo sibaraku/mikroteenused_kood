@@ -1,0 +1,21 @@
+{
+    "name": "kool/laenutus-loans",
+    "description": "Laenutus loans mikroteenus (sissepääs + frontend)",
+    "type": "project",
+    "require": {
+        "php": ">=8.2",
+        "firebase/php-jwt": "^6.10",
+        "ext-curl": "*",
+        "ext-pdo": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Laenutus\\": ["src/", "../shared/"]
+        }
+    },
+    "config": {
+        "audit": {
+            "block-insecure": false
+        }
+    }
+}
