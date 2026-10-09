@@ -8,6 +8,7 @@ use Laenutus\Auth\AuthException;
 use Laenutus\Auth\AuthMiddleware;
 use Laenutus\Auth\AuthService;
 use Laenutus\Clients\ItemsHttpClient;
+use Laenutus\Clients\ReservationsHttpClient;
 use Laenutus\Config;
 use Laenutus\HttpClient;
 use Laenutus\Loans\LoansService;
@@ -21,6 +22,7 @@ $router = new Router();
 
 $authService = new AuthService();
 $itemsClient = new ItemsHttpClient();
+$reservationsClient = new ReservationsHttpClient();
 $loansService = new LoansService();
 $loanViewService = new LoanViewService($loansService, $itemsClient);
 
@@ -34,7 +36,7 @@ $handleException = static function (Throwable $e) use ($request): void {
     Response::error('INTERNAL_ERROR', 'Sisemine viga', 500, $request->requestId);
 };
 
-$proxyItems = static function (Request $req, string $method, string $path) use ($handleException): void {
+$proxyItems = static function (Request $req, string $method, string $path) use ($handleException, $reservationsClient): void {
     try {
         $client = new HttpClient(
             Config::get('ITEMS_SERVICE_URL', 'http://items-service'),
@@ -42,6 +44,14 @@ $proxyItems = static function (Request $req, string $method, string $path) use (
             $req->requestId,
         );
         $result = $client->request($method, $path, $req->body !== [] ? $req->body : null, $req->query);
+
+        if ($result['status'] >= 200 && $result['status'] < 300 && $method === 'PATCH' && ($req->body['status'] ?? null) === 'available' && preg_match('~^/items/([^/]+)$~', $path, $matches)) {
+            try {
+                $reservationsClient->notifyNext(rawurldecode($matches[1]), $req->requestId);
+            } catch (Throwable $e) {
+                laenutus_log('error', 'Could not notify next reservation', $req->requestId, ['error' => $e->getMessage()]);
+            }
+        }
 
         if ($result['status'] === 204) {
             Response::noContent($req->requestId);
@@ -112,6 +122,48 @@ $router->get('/loans', static function (Request $req) use ($loansService, $handl
         $auth = AuthMiddleware::requireAuth($req);
         $loans = $loansService->list($auth['userId'], $auth['role'] === 'admin');
         Response::json($loans, 200, $req->requestId);
+    } catch (Throwable $e) {
+        $handleException($e);
+    }
+});
+
+$router->get('/reservations', static function (Request $req) use ($reservationsClient, $handleException) {
+    try {
+        AuthMiddleware::requireAuth($req);
+        Response::json($reservationsClient->list($req->bearerToken(), $req->requestId), 200, $req->requestId);
+    } catch (Throwable $e) {
+        $handleException($e);
+    }
+});
+
+$router->post('/reservations', static function (Request $req) use ($reservationsClient, $itemsClient, $authService, $handleException) {
+    try {
+        $auth = AuthMiddleware::requireAuth($req);
+        $itemId = (string) ($req->body['itemId'] ?? '');
+        if ($itemId === '') {
+            throw new AuthException('INVALID_INPUT', 'Vahendi ID on kohustuslik', 400);
+        }
+        $item = $itemsClient->get($itemId, $req->bearerToken(), $req->requestId);
+        if ($item['status'] !== 'reserved') {
+            throw new AuthException('ITEM_NOT_ON_LOAN', 'Ootejärjekorda saab lisada ainult juba laenutatud vahendile', 409);
+        }
+        $reservation = $reservationsClient->create([
+            'itemId' => $itemId,
+            'itemName' => $item['name'],
+            'userId' => $auth['userId'],
+            'email' => $authService->getUserEmail($auth['userId']),
+        ], $req->bearerToken(), $req->requestId);
+        Response::json($reservation, 201, $req->requestId);
+    } catch (Throwable $e) {
+        $handleException($e);
+    }
+});
+
+$router->delete('/reservations/{id}', static function (Request $req, array $params) use ($reservationsClient, $handleException) {
+    try {
+        AuthMiddleware::requireAuth($req);
+        $reservationsClient->cancel($params['id'], $req->bearerToken(), $req->requestId);
+        Response::noContent($req->requestId);
     } catch (Throwable $e) {
         $handleException($e);
     }

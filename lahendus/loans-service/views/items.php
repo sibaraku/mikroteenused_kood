@@ -40,6 +40,15 @@
             <tbody></tbody>
         </table>
     </div>
+
+    <div class="card" id="reservations-card">
+        <h2>Minu ootejärjekorrad</h2>
+        <div id="reservations-loading" class="muted">Laadin...</div>
+        <table id="reservations-table" class="data-table hidden">
+            <thead><tr><th>Vahend</th><th>Staatus</th><th>Lisatud</th><th></th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
 </section>
 
 <script>
@@ -52,11 +61,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             'Admin vaade: vahendite ülevaade ja staatuse haldus.';
         document.getElementById('loan-form-card').classList.add('hidden');
         document.getElementById('items-table-title').textContent = 'Vahendite haldus';
+        document.getElementById('reservations-card').classList.add('hidden');
 
         const headRow = document.getElementById('items-table-head');
         const th = document.createElement('th');
         th.textContent = 'Muuda staatust';
         headRow.appendChild(th);
+    } else {
+        const th = document.createElement('th');
+        th.textContent = 'Tegevused';
+        document.getElementById('items-table-head').appendChild(th);
     }
 
     try {
@@ -91,6 +105,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <td>${item.name}</td>
                     <td>${item.category}</td>
                     <td><span class="badge badge-${item.status}">${item.status}</span></td>
+                    <td>${item.status === 'reserved' ? `<button type="button" class="btn btn-primary btn-sm reservation-create" data-item-id="${item.id}">Teavita vabanemisel</button>` : '—'}</td>
                 `;
 
                 if (item.status === 'available') {
@@ -106,6 +121,50 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         document.getElementById('items-loading').classList.add('hidden');
         document.getElementById('items-table').classList.remove('hidden');
+
+        if (!isAdmin) {
+            document.querySelectorAll('.reservation-create').forEach(button => {
+                button.addEventListener('click', async () => {
+                    button.disabled = true;
+                    try {
+                        const reservation = await LaenutusApp.api('/reservations', {
+                            method: 'POST',
+                            body: JSON.stringify({ itemId: button.dataset.itemId }),
+                        });
+                        LaenutusApp.showToast(`Olete ootejärjekorras: ${reservation.itemName}`, 'success');
+                        setTimeout(() => window.location.reload(), 600);
+                    } catch (err) {
+                        button.disabled = false;
+                        LaenutusApp.showToast(err.message, 'error');
+                    }
+                });
+            });
+
+            const reservations = await LaenutusApp.api('/reservations');
+            const reservationBody = document.querySelector('#reservations-table tbody');
+            reservations.forEach(reservation => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${reservation.itemName}</td>
+                    <td>${reservation.status}</td>
+                    <td>${reservation.createdAt || '—'}</td>
+                    <td>${reservation.status !== 'cancelled' ? `<button type="button" class="btn btn-sm reservation-cancel" data-id="${reservation.id}">Tühista</button>` : '—'}</td>
+                `;
+                reservationBody.appendChild(tr);
+            });
+            document.getElementById('reservations-loading').classList.add('hidden');
+            document.getElementById('reservations-table').classList.remove('hidden');
+            document.querySelectorAll('.reservation-cancel').forEach(button => {
+                button.addEventListener('click', async () => {
+                    try {
+                        await LaenutusApp.api(`/reservations/${button.dataset.id}`, { method: 'DELETE' });
+                        window.location.reload();
+                    } catch (err) {
+                        LaenutusApp.showToast(err.message, 'error');
+                    }
+                });
+            });
+        }
 
         if (isAdmin) {
             document.querySelectorAll('.item-status-form').forEach(form => {
