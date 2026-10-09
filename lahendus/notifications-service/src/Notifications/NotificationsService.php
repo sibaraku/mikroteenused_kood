@@ -29,23 +29,25 @@ final class NotificationsService
     {
         $userId = (string) ($data['userId'] ?? '');
         $loanId = (string) ($data['loanId'] ?? '');
+        $reservationId = (string) ($data['reservationId'] ?? '');
         $email = (string) ($data['email'] ?? '');
         $message = (string) ($data['message'] ?? '');
 
-        if ($userId === '' || $loanId === '' || $email === '' || $message === '') {
+        if ($userId === '' || ($loanId === '' && $reservationId === '') || $email === '' || $message === '') {
             throw new AuthException('INVALID_INPUT', 'Kõik väljad on kohustuslikud', 400);
         }
 
         $id = generate_id('n');
 
         $stmt = $this->db()->prepare(
-            'INSERT INTO notifications (id, user_id, loan_id, email, message, status, sent_at)
-             VALUES (:id, :user_id, :loan_id, :email, :message, :status, NOW())'
+            'INSERT INTO notifications (id, user_id, loan_id, reservation_id, email, message, status, sent_at)
+             VALUES (:id, :user_id, :loan_id, :reservation_id, :email, :message, :status, NOW())'
         );
         $stmt->execute([
             'id' => $id,
             'user_id' => $userId,
-            'loan_id' => $loanId,
+            'loan_id' => $loanId !== '' ? $loanId : null,
+            'reservation_id' => $reservationId !== '' ? $reservationId : null,
             'email' => $email,
             'message' => $message,
             'status' => 'sent',
@@ -60,7 +62,8 @@ final class NotificationsService
         return $this->format([
             'id' => $id,
             'user_id' => $userId,
-            'loan_id' => $loanId,
+            'loan_id' => $loanId !== '' ? $loanId : null,
+            'reservation_id' => $reservationId !== '' ? $reservationId : null,
             'email' => $email,
             'message' => $message,
             'status' => 'sent',
@@ -74,7 +77,8 @@ final class NotificationsService
         return [
             'id' => $row['id'],
             'userId' => $row['user_id'],
-            'loanId' => $row['loan_id'],
+            'loanId' => $row['loan_id'] ?? null,
+            'reservationId' => $row['reservation_id'] ?? null,
             'email' => $row['email'],
             'message' => $row['message'],
             'status' => $row['status'],
