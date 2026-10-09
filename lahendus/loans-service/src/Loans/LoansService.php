@@ -8,6 +8,7 @@ use Laenutus\Auth\AuthException;
 use Laenutus\Auth\AuthService;
 use Laenutus\Clients\ItemsHttpClient;
 use Laenutus\Clients\NotificationsHttpClient;
+use Laenutus\Clients\ReservationsHttpClient;
 use PDO;
 use PDOException;
 use Throwable;
@@ -18,6 +19,7 @@ final class LoansService
         private readonly ?PDO $db = null,
         private readonly ?ItemsHttpClient $items = null,
         private readonly ?NotificationsHttpClient $notifications = null,
+        private readonly ?ReservationsHttpClient $reservations = null,
         private readonly ?AuthService $auth = null,
     ) {}
 
@@ -34,6 +36,11 @@ final class LoansService
     private function notifications(): NotificationsHttpClient
     {
         return $this->notifications ?? new NotificationsHttpClient();
+    }
+
+    private function reservations(): ReservationsHttpClient
+    {
+        return $this->reservations ?? new ReservationsHttpClient();
     }
 
     private function auth(): AuthService
@@ -185,6 +192,7 @@ final class LoansService
 
         if ($data['status'] === 'cancelled' && $loan['status'] === 'confirmed') {
             $this->items()->release($loan['item_id'], $authToken, $requestId);
+            $this->notifyNextReservation($loan['item_id'], $requestId);
         }
 
         return $this->get($id);
@@ -199,6 +207,7 @@ final class LoansService
 
         if ($loan['status'] === 'confirmed') {
             $this->items()->release($loan['item_id'], $authToken, $requestId);
+            $this->notifyNextReservation($loan['item_id'], $requestId);
         }
 
         $stmt = $this->db()->prepare('DELETE FROM loans WHERE id = :id');
@@ -210,6 +219,18 @@ final class LoansService
         $stmt = $this->db()->prepare("UPDATE loans SET status = 'cancelled' WHERE id = :id");
         $stmt->execute(['id' => $loanId]);
         laenutus_log('info', 'Compensation applied', $requestId, ['loanId' => $loanId, 'action' => 'cancelled']);
+    }
+
+    private function notifyNextReservation(string $itemId, ?string $requestId): void
+    {
+        try {
+            $this->reservations()->notifyNext($itemId, $requestId);
+        } catch (Throwable $e) {
+            laenutus_log('error', 'Could not notify next reservation', $requestId, [
+                'itemId' => $itemId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /** @param array<string, mixed> $row */
