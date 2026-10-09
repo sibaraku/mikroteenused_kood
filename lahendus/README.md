@@ -1,6 +1,6 @@
 # Laenutus — mikroteenuste valmislahendus
 
-See kaust sisaldab **valmis lahendust**, kus juurkausta monoliit on jagatud **kolmeks mikroteenuseks**. Võiks alustada [monoliidist](../README.md) ja lõhkuda see ise; see kaust on võrdluseks ja kontrollnimekirjaks.
+See kaust sisaldab **valmis lahendust**, kus juurkausta monoliit on jagatud mikroteenusteks. Võiks alustada [monoliidist](../README.md) ja lõhkuda see ise; see kaust on võrdluseks ja kontrollnimekirjaks.
 
 ## Käivitamine
 
@@ -53,38 +53,48 @@ flowchart TB
         NotifAPI[Notifications API]
     end
 
+    subgraph reservationSvc [reservations-service :8083]
+        ReservationAPI[Reservations API]
+    end
+
     UI --> Frontend
     UI --> LoansAPI
     LoansAPI -->|"HTTP"| ItemsAPI
     LoansAPI -->|"HTTP"| NotifAPI
+    LoansAPI -->|"HTTP"| ReservationAPI
+    ReservationAPI -->|"HTTP"| NotifAPI
     LoanView -->|"HTTP"| ItemsAPI
 
     subgraph dbs [Eraldi MySQL andmebaasid]
         dbLoans[(loans_db)]
         dbItems[(items_db)]
         dbNotif[(notifications_db)]
+        dbReservations[(reservations_db)]
     end
 
     Auth --> dbLoans
     LoansAPI --> dbLoans
     ItemsAPI --> dbItems
     NotifAPI --> dbNotif
+    ReservationAPI --> dbReservations
 ```
 
-## Miks tundub nagu üks rakendus? (6 Docker konteinerit)
+## Miks tundub nagu üks rakendus? (8 Docker konteinerit)
 
-**Kõik ei käivitu ühes konteineris.** Käsk `docker compose up` käivitab **6 eraldi konteinerit**:
+**Kõik ei käivitu ühes konteineris.** Käsk `docker compose up` käivitab **8 eraldi konteinerit**:
 
 | Konteiner | Roll | Väline port |
 |-----------|------|-------------|
 | `loans-service` | Auth, laenutused, frontend, loan-view | **8080** (brauser avab selle) |
 | `items-service` | Vahendite API | 8081 |
 | `notifications-service` | Teavituste API | 8082 |
+| `reservations-service` | Ootejärjekord | 8083 |
 | `loans-db` | users + loans andmebaas | sisemine |
 | `items-db` | items andmebaas | sisemine |
 | `notifications-db` | notifications andmebaas | sisemine |
+| `reservations-db` | reservations andmebaas | sisemine |
 
-Segaduse põhjus: brauser näeb ainult **8080**. `loans-service` on sissepääs — frontend ja API tulevad sealt. Teiste teenustega suhtlemine toimub Dockeri **sisemises võrgus** (`http://items-service`, `http://notifications-service`).
+Segaduse põhjus: brauser näeb tavaliselt ainult **8080**. `loans-service` on sissepääs — frontend ja API tulevad sealt. Teiste teenustega suhtlemine toimub Dockeri **sisemises võrgus** (`http://items-service`, `http://notifications-service`, `http://reservations-service`).
 
 ```mermaid
 flowchart LR
@@ -92,9 +102,11 @@ flowchart LR
     Loans["loans-service\nkonteiner 1"]
     Items["items-service\nkonteiner 2"]
     Notif["notifications-service\nkonteiner 3"]
+    Reservations["reservations-service\nkonteiner 4"]
     DB1["loans-db"]
     DB2["items-db"]
     DB3["notifications-db"]
+    DB4["reservations-db"]
 
     Browser --> Loans
     Loans -->|"HTTP sisemine"| Items
@@ -102,19 +114,25 @@ flowchart LR
     Loans --> DB1
     Items --> DB2
     Notif --> DB3
+    Loans -->|"HTTP sisemine"| Reservations
+    Reservations -->|"HTTP sisemine"| Notif
+    Reservations --> DB4
 ```
 
 Kontroll:
 
 ```bash
-docker compose ps                    # näitab 6 konteinerit
+docker compose ps                    # näitab 8 konteinerit
 curl http://localhost:8081/health    # items eraldi
 curl http://localhost:8082/health    # notifications eraldi
+curl http://localhost:8083/health    # reservations eraldi
 ```
 
-Pordid 8081 ja 8082 on debugimiseks — tavaline kasutaja kasutab ainult 8080.
+Pordid 8081–8083 on debugimiseks — tavaline kasutaja kasutab tavaliselt ainult 8080.
 
 **Notifications (8082)** nõuab sisemist API võtit (`X-Internal-Api-Key` päis). Sama võti on `INTERNAL_API_KEY` muutujas nii `loans-service`-is kui `notifications-service`-is. Ilma võtmeta on `/notifications` otspunktid blokeeritud.
+
+`reservations-service` (8083) hoiab ootejärjekorda eraldi andmebaasis. Kasutaja saab kataloogis järjekorda lisada juba laenutatud vahendi; vahendi vabastamisel saab järjekorra esimene kasutaja teavituse. Teenuse sisemine `notify-next` otspunkt nõuab `X-Internal-Api-Key` päist.
 
 ## Mis on kompensatsioon?
 
@@ -179,7 +197,7 @@ Kompensatsiooni loogika on [`loans-service/src/Loans/LoansService.php`](loans-se
 |--------|----------------------|---------------------------|
 | Andmebaas | 1 MySQL, 4 tabelit, FK-d | 3 MySQL, 3 tabelit teenuse kohta, FK-d ainult seesama teenuse piires |
 | Suhtlus | otsekutsed PHP-s (`new ItemsService()`) | HTTP REST (`HttpClient`) |
-| Juurutamine | 2 konteinerit (app + db) | 6 konteinerit (3 app + 3 db) |
+| Juurutamine | 2 konteinerit (app + db) | 8 konteinerit (4 app + 4 db) |
 | Tehingud | üks DB transaktsioon | kompensatsioon (Saga muster) |
 | Sissepääs | üks `index.php` | loans-service (8080) + proxy items API-le |
 | Auth | monoliidis | loans-service sees (8080) |
@@ -203,15 +221,17 @@ Kompensatsiooni loogika on [`loans-service/src/Loans/LoansService.php`](loans-se
 | `src/Auth/` + `src/Loans/` + `src/LoanView/` + frontend | loans-service | 8080 | loans_db (users, loans) |
 | `src/Items/` | items-service | 8081 | items_db (items) |
 | `src/Notifications/` | notifications-service | 8082 | notifications_db (notifications) |
+| Ootejärjekord | reservations-service | 8083 | reservations_db (reservations) |
 
 ## API otspunktid
 
-**Brauseri kaudu (8080):** sama mis monoliidis — `GET /health`, `POST /auth/login`, `GET /items`, `GET/POST/PATCH/DELETE /loans`, `GET /loan-view/{id}`.
+**Brauseri kaudu (8080):** `GET /health`, `POST /auth/login`, `GET /items`, `GET/POST/PATCH/DELETE /loans`, `GET/POST /reservations`, `DELETE /reservations/{id}`, `GET /loan-view/{id}`.
 
 **Otse teenustele (debug):**
 
 - Items (8081): `GET /health`, `GET /items`, `GET /items/{id}`, `PATCH /items/{id}` (admin), `POST /items/{id}/reserve`, `POST /items/{id}/release`
 - Notifications (8082): `GET /health`, `POST /notifications`, `GET /notifications` (vajab `X-Internal-Api-Key` päist)
+- Reservations (8083): `GET /health`, `GET/POST /reservations`, `DELETE /reservations/{id}` (JWT); `POST /reservations/notify-next` (vajab sisemist API võtit)
 
 ## curl näited
 

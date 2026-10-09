@@ -128,4 +128,4 @@ php -S localhost:8080 -t public
 
 ## Õpetaja valmislahendus
 
-Mikroteenuste variant (3 teenust, 6 Docker konteinerit): vaata [`lahendus/README.md`](lahendus/README.md).
+Mikroteenuste variant (4 teenust, 8 Docker konteinerit): vaata [`lahendus/README.md`](lahendus/README.md).
