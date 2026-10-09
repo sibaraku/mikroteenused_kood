@@ -15,12 +15,15 @@ services:
       DB_PASSWORD: loans123
       ITEMS_SERVICE_URL: http://items-service
       NOTIFICATIONS_SERVICE_URL: http://notifications-service
+      RESERVATIONS_SERVICE_URL: http://reservations-service
     depends_on:
       loans-db:
         condition: service_healthy
       items-service:
         condition: service_started
       notifications-service:
+        condition: service_started
+      reservations-service:
         condition: service_started
 
   items-service:
@@ -56,6 +59,27 @@ services:
     depends_on:
       notifications-db:
         condition: service_healthy
+
+  reservations-service:
+    build:
+      context: .
+      dockerfile: reservations-service/Dockerfile
+    ports:
+      - "8083:80"
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-dev-internal-key-change-me}
+      NOTIFICATIONS_SERVICE_URL: http://notifications-service
+      DB_HOST: reservations-db
+      DB_PORT: 3306
+      DB_NAME: reservations_db
+      DB_USER: reservations
+      DB_PASSWORD: reservations123
+    depends_on:
+      reservations-db:
+        condition: service_healthy
+      notifications-service:
+        condition: service_started
 
   loans-db:
     image: mysql:8
@@ -96,6 +120,21 @@ services:
       MYSQL_PASSWORD: notifications123
     volumes:
       - ./notifications-service/sql:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  reservations-db:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: reservations_db
+      MYSQL_USER: reservations
+      MYSQL_PASSWORD: reservations123
+    volumes:
+      - ./reservations-service/sql:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 5s

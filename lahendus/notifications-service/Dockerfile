@@ -3,8 +3,8 @@ FROM php:8.2-apache
 RUN a2enmod rewrite \
     && docker-php-ext-install pdo pdo_mysql \
     && apt-get update \
-    && apt-get install -y libcurl4-openssl-dev \
-    && docker-php-ext-install curl \
+    && apt-get install -y libcurl4-openssl-dev libzip-dev unzip \
+    && docker-php-ext-install curl zip \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

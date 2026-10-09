@@ -12,11 +12,11 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 
 COPY shared /var/www/shared
-COPY loans-service/composer.json ./
+COPY reservations-service/composer.json ./
 
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-COPY loans-service/ ./
+COPY reservations-service/ ./
 
 RUN chown -R www-data:www-data /var/www/html
 
